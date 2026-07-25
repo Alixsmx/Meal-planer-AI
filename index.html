@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planer Posiłków i Analizator Zakupów</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<style>
+/* ===================================================================
+   Design tokens
+   =================================================================== */
+:root {
+  --bg: #FAFAF7;
+  --bg-card: #FFFFFF;
+  --ink: #1F2420;
+  --ink-soft: #5B655F;
+  --border: #E5E3DC;
+
+  --red: #E5484D;
+  --red-soft: #FDEEEE;
+  --yellow: #D69A22;
+  --yellow-soft: #FDF6E7;
+  --green: #2E9E6D;
+  --green-soft: #EAF7F1;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --shadow: 0 1px 2px rgba(31, 36, 32, 0.04), 0 8px 24px -12px rgba(31, 36, 32, 0.12);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  color: var(--ink);
+  margin: 0;
+}
+
+p { margin: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ===================================================================
+   Top bar
+   =================================================================== */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar__inner {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 18px 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand__mark {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.brand__mark .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50% 50% 50% 40%;
+}
+
+.brand__text {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.tabs {
+  display: inline-flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  white-space: nowrap;
+}
+
+.tab:hover { color: var(--ink); }
+
+.tab.is-active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.scanline {
+  height: 3px;
+  background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account__email {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.account__email.hidden, #logout-btn.hidden, #login-btn.hidden { display: none; }
+
+.gate-banner {
+  background: var(--yellow-soft);
+  color: #8A6414;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.gate-banner.hidden { display: none; }
+
+.form-card.is-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ===================================================================
+   Layout
+   =================================================================== */
+.app {
+  flex: 1;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 36px 20px 64px;
+}
+
+.panel { display: none; }
+.panel.is-active {
+  display: block;
+  animation: rise 0.35s ease both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.intro {
+  margin-bottom: 28px;
+}
+
+.intro h1 {
+  font-size: clamp(1.6rem, 4vw, 2.15rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-bottom: 8px;
+}
+
+.intro p {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  max-width: 52ch;
+}
+
+/* ===================================================================
+   Legend
+   =================================================================== */
+.legend {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.legend__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.legend__item strong {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.legend__item span:last-child {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
+.chip {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border-radius: 50% 50% 50% 40%;
+  margin-top: 2px;
+}
+
+.chip--red { background: var(--red); }
+.chip--yellow { background: var(--yellow); }
+.chip--green { background: var(--green); }
+
+/* ===================================================================
+   Cards & forms
+   =================================================================== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 26px;
+}
+
+.field { margin-bottom: 18px; }
+.field:last-of-type { margin-bottom: 0; }
+
+.field-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.field-row .field { flex: 1; min-width: 180px; }
+.field--narrow { max-width: 140px; flex: 0 0 140px; }
+
+.field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.req { color: var(--red); }
+
+.products-input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.products-input:focus { border-color: var(--ink); }
+
+select, input[type="number"] {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+select:focus, input[type="number"]:focus { border-color: var(--ink); }
+
+.checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkbox-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px 8px 12px;
+  font-size: 0.86rem;
+  cursor: pointer;
+  background: var(--bg);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.checkbox-pill input {
+  margin-right: 7px;
+  accent-color: var(--green);
+}
+
+.checkbox-pill:has(input:checked) {
+  background: var(--green-soft);
+  border-color: var(--green);
+}
+
+.form-actions {
+  margin-top: 22px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 999px;
+  padding: 12px 24px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.15s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn--primary {
+  background: var(--ink);
+  color: #fff;
+}
+
+.btn--primary:hover { opacity: 0.88; }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--ink);
+  padding: 10px 18px;
+  font-size: 0.86rem;
+}
+
+.btn--ghost:hover { background: var(--bg); }
+
+/* ===================================================================
+   Loader
+   =================================================================== */
+.loader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.loader.hidden { display: none; }
+
+.loader__spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--ink);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================================================================
+   Error banner
+   =================================================================== */
+.error-banner {
+  background: var(--red-soft);
+  border: 1px solid rgba(229, 72, 77, 0.35);
+  color: #A32F33;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  margin: 12px 0;
+}
+
+.error-banner.hidden { display: none; }
+
+/* ===================================================================
+   Analyzer results
+   =================================================================== */
+.results.hidden { display: none; }
+
+.results__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 18px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.results__header h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.product-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  border-top: 4px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.product-card--red { border-top-color: var(--red); }
+.product-card--yellow { border-top-color: var(--yellow); }
+.product-card--green { border-top-color: var(--green); }
+
+.product-card__name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.product-card__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 11px 5px 8px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.product-card--red .product-card__rating { background: var(--red-soft); color: #A32F33; }
+.product-card--yellow .product-card__rating { background: var(--yellow-soft); color: #8A6414; }
+.product-card--green .product-card__rating { background: var(--green-soft); color: #1F7A54; }
+
+.product-card__reason {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.product-card__alts {
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.product-card__alts-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.product-card__alts ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+/* ===================================================================
+   Meal result
+   =================================================================== */
+.meal-result.hidden { display: none; }
+
+.meal-result__header {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.dish-name {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.meal-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.meal-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.meal-section h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meal-section__icon { font-size: 1.1rem; }
+
+.shopping-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.shopping-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.92rem;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shopping-list li:last-child { border-bottom: none; }
+
+.shopping-list .amount {
+  color: var(--ink-soft);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recipe-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 12px;
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.recipe-steps li { padding-left: 4px; }
+
+.tips-text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  white-space: pre-line;
+}
+
+/* ===================================================================
+   Footer
+   =================================================================== */
+.site-footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+/* ===================================================================
+   Responsive
+   =================================================================== */
+@media (max-width: 640px) {
+  .legend { grid-template-columns: 1fr; }
+  .topbar__inner { flex-direction: column; align-items: stretch; }
+  .tabs { justify-content: center; }
+  .card { padding: 20px; }
+  .results__header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ===================================================================
+   Print
+   =================================================================== */
+@media print {
+  .topbar, .site-footer, .no-print { display: none !important; }
+  body { background: #fff; }
+  .app { padding: 0; max-width: 100%; }
+  .meal-section, .card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* ===================================================================
+   Reduced motion
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .panel.is-active { animation: none; }
+  .loader__spinner { animation-duration: 1.6s; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">
+        <span class="dot dot--red"></span><span class="dot dot--yellow"></span><span class="dot dot--green"></span>
+      </span>
+      <span class="brand__text">Planer Posiłków</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sekcje aplikacji">
+      <button class="tab is-active" id="tab-analyze" role="tab" aria-selected="true" aria-controls="panel-analyze">Analizator produktów</button>
+      <button class="tab" id="tab-meal" role="tab" aria-selected="false" aria-controls="panel-meal">Generator posiłku</button>
+    </nav>
+    <div class="account">
+      <span id="account-email" class="account__email hidden"></span>
+      <button class="btn btn--ghost" id="login-btn">Zaloguj się</button>
+      <button class="btn btn--ghost hidden" id="logout-btn">Wyloguj</button>
+    </div>
+  </div>
+  <div class="scanline" aria-hidden="true"></div>
+</header>
+
+<div id="gate-banner" class="gate-banner hidden">
+  🔒 Zaloguj się (Google lub e-mail), aby korzystać z analizatora i generatora dań.
+</div>
+
+<main class="app">
+
+  <!-- ================= PANEL 1: ANALYZER ================= -->
+  <section class="panel is-active" id="panel-analyze" role="tabpanel" aria-labelledby="tab-analyze">
+
+    <div class="intro">
+      <h1>Co jest w Twojej koszyku?</h1>
+      <p>Wpisz produkty, po jednym w linii — sprawdzimy każdy z nich i podpowiemy zdrowsze zamienniki.</p>
+    </div>
+
+    <div class="legend" aria-hidden="false">
+      <div class="legend__item">
+        <span class="chip chip--red"></span>
+        <div>
+          <strong>Czerwony</strong>
+          <span>unikaj, bardzo niezdrowe</span>
+        </div>
+      </div>
+      <div class="legend__item">
+        <span class="chip chip--yellow"></span>
+        <div>
+          <strong>Żółty</strong>
+          <span>spożywaj z umiarem</span>
+        </div>
+      </div>
+      <div class="legend__item">
+        <span class="chip chip--green"></span>
+        <div>
+          <strong>Zielony</strong>
+          <span>zdrowy wybór</span>
+        </div>
+      </div>
+    </div>
+
+    <form id="analyze-form" class="card form-card">
+      <label for="products-input" class="field-label">Lista produktów</label>
+      <textarea id="products-input" class="products-input" rows="7" placeholder="np.&#10;Płatki owsiane&#10;Coca-Cola&#10;Jogurt naturalny&#10;Chipsy ziemniaczane" required></textarea>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary" id="analyze-btn">Analizuj</button>
+      </div>
+    </form>
+
+    <div id="analyze-loading" class="loader hidden">
+      <span class="loader__spinner" aria-hidden="true"></span>
+      <span class="loader__text">Analizuję…</span>
+    </div>
+
+    <div id="analyze-error" class="error-banner hidden"></div>
+
+    <div id="analyze-results" class="results hidden">
+      <div class="results__header">
+        <h2>Wyniki analizy</h2>
+        <button class="btn btn--ghost" id="reanalyze-btn">Analizuj ponownie</button>
+      </div>
+      <div id="products-grid" class="products-grid"></div>
+    </div>
+
+  </section>
+
+  <!-- ================= PANEL 2: MEAL GENERATOR ================= -->
+  <section class="panel" id="panel-meal" role="tabpanel" aria-labelledby="tab-meal">
+
+    <div class="intro">
+      <h1>Co dziś ugotujemy?</h1>
+      <p>Podaj kilka kryteriów, a ułożymy dla Ciebie danie, listę zakupów i przepis krok po kroku.</p>
+    </div>
+
+    <form id="meal-form" class="card form-card">
+
+      <div class="field">
+        <label for="meal-type" class="field-label">Typ posiłku <span class="req">*</span></label>
+        <select id="meal-type" required>
+          <option value="" disabled selected>Wybierz typ posiłku…</option>
+          <option value="śniadanie">Śniadanie</option>
+          <option value="drugie śniadanie">Drugie śniadanie</option>
+          <option value="obiad">Obiad</option>
+          <option value="podwieczorek">Podwieczorek</option>
+          <option value="kolacja">Kolacja</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Preferencje dietetyczne</span>
+        <div class="checkbox-grid">
+          <label class="checkbox-pill">
+            <input type="checkbox" name="diet" value="wegetariańskie">
+            <span>Wegetariańskie</span>
+          </label>
+          <label class="checkbox-pill">
+            <input type="checkbox" name="diet" value="bezglutenowe">
+            <span>Bezglutenowe</span>
+          </label>
+          <label class="checkbox-pill">
+            <input type="checkbox" name="diet" value="niskokaloryczne">
+            <span>Niskokaloryczne</span>
+          </label>
+          <label class="checkbox-pill">
+            <input type="checkbox" name="diet" value="keto">
+            <span>Keto</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="prep-time" class="field-label">Czas przygotowania</label>
+          <select id="prep-time">
+            <option value="dowolny">Dowolny</option>
+            <option value="do 15 minut">Do 15 min</option>
+            <option value="do 30 minut">Do 30 min</option>
+            <option value="do 60 minut">Do 60 min</option>
+          </select>
+        </div>
+
+        <div class="field field--narrow">
+          <label for="servings" class="field-label">Liczba porcji</label>
+          <input type="number" id="servings" min="1" max="12" value="2">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary" id="meal-btn">Wygeneruj danie</button>
+      </div>
+    </form>
+
+    <div id="meal-loading" class="loader hidden">
+      <span class="loader__spinner" aria-hidden="true"></span>
+      <span class="loader__text">Komponuję danie…</span>
+    </div>
+
+    <div id="meal-error" class="error-banner hidden"></div>
+
+    <div id="meal-result" class="meal-result hidden">
+      <div class="meal-result__header no-print">
+        <button class="btn btn--ghost" id="regenerate-btn">Wygeneruj ponownie</button>
+        <button class="btn btn--ghost" id="print-btn">Drukuj / Zapisz jako PDF</button>
+      </div>
+
+      <h2 id="dish-name" class="dish-name"></h2>
+
+      <div class="meal-sections">
+        <div class="meal-section">
+          <h3><span class="meal-section__icon" aria-hidden="true">🛒</span> Lista zakupów</h3>
+          <ul id="shopping-list" class="shopping-list"></ul>
+        </div>
+
+        <div class="meal-section">
+          <h3><span class="meal-section__icon" aria-hidden="true">📋</span> Przepis</h3>
+          <ol id="recipe-steps" class="recipe-steps"></ol>
+        </div>
+
+        <div class="meal-section">
+          <h3><span class="meal-section__icon" aria-hidden="true">💡</span> Wskazówki</h3>
+          <p id="tips-text" class="tips-text"></p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="site-footer no-print">
+  <p>Oceny i przepisy generowane są przez AI — traktuj je jako wskazówkę, nie poradę medyczną.</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------
+     Tab switching
+     --------------------------------------------------------------- */
+  const tabAnalyze = document.getElementById('tab-analyze');
+  const tabMeal = document.getElementById('tab-meal');
+  const panelAnalyze = document.getElementById('panel-analyze');
+  const panelMeal = document.getElementById('panel-meal');
+
+  function activateTab(tab) {
+    const isAnalyze = tab === 'analyze';
+
+    tabAnalyze.classList.toggle('is-active', isAnalyze);
+    tabMeal.classList.toggle('is-active', !isAnalyze);
+    tabAnalyze.setAttribute('aria-selected', String(isAnalyze));
+    tabMeal.setAttribute('aria-selected', String(!isAnalyze));
+
+    panelAnalyze.classList.toggle('is-active', isAnalyze);
+    panelMeal.classList.toggle('is-active', !isAnalyze);
+  }
+
+  tabAnalyze.addEventListener('click', () => activateTab('analyze'));
+  tabMeal.addEventListener('click', () => activateTab('meal'));
+
+  /* ---------------------------------------------------------------
+     Helpers
+     --------------------------------------------------------------- */
+  function showEl(el) { el.classList.remove('hidden'); }
+  function hideEl(el) { el.classList.add('hidden'); }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  const FRIENDLY_ERROR = 'Nie udało się połączyć z serwerem. Sprawdź połączenie internetowe i spróbuj ponownie.';
+
+  /* ---------------------------------------------------------------
+     Login (Netlify Identity: Google + e-mail)
+     --------------------------------------------------------------- */
+  const loginBtn = document.getElementById('login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+  const accountEmail = document.getElementById('account-email');
+  const gateBanner = document.getElementById('gate-banner');
+  const analyzeFormCard = document.getElementById('analyze-form');
+  const mealFormCard = document.getElementById('meal-form');
+
+  let currentUser = null;
+
+  function setLoggedInUI(user) {
+    currentUser = user || null;
+    if (user) {
+      showEl(logoutBtn);
+      showEl(accountEmail);
+      hideEl(loginBtn);
+      hideEl(gateBanner);
+      accountEmail.textContent = user.email || '';
+      analyzeFormCard.classList.remove('is-locked');
+      mealFormCard.classList.remove('is-locked');
+    } else {
+      hideEl(logoutBtn);
+      hideEl(accountEmail);
+      showEl(loginBtn);
+      showEl(gateBanner);
+      analyzeFormCard.classList.add('is-locked');
+      mealFormCard.classList.add('is-locked');
+    }
+  }
+
+  if (window.netlifyIdentity) {
+    netlifyIdentity.on('init', (user) => setLoggedInUI(user));
+    netlifyIdentity.on('login', (user) => {
+      setLoggedInUI(user);
+      netlifyIdentity.close();
+    });
+    netlifyIdentity.on('logout', () => setLoggedInUI(null));
+    netlifyIdentity.init();
+  } else {
+    // Widget script failed to load (e.g. offline) — fail safe to locked state.
+    setLoggedInUI(null);
+  }
+
+  loginBtn.addEventListener('click', () => {
+    if (window.netlifyIdentity) netlifyIdentity.open();
+  });
+  logoutBtn.addEventListener('click', () => {
+    if (window.netlifyIdentity) netlifyIdentity.logout();
+  });
+
+  /* ---------------------------------------------------------------
+     Backend calls — the shared OpenAI key lives only in the Netlify
+     function (netlify/functions/api.js), never in this file.
+     --------------------------------------------------------------- */
+  async function callApi(action, payload) {
+    if (!currentUser) {
+      throw new Error('Zaloguj się, aby skorzystać z tej funkcji.');
+    }
+
+    const token = currentUser.token && currentUser.token.access_token;
+
+    const res = await fetch('/.netlify/functions/api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ action, ...payload })
+    });
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error('Serwer zwrócił nieprawidłową odpowiedź. Spróbuj ponownie.');
+    }
+
+    if (!res.ok) {
+      throw new Error((data && data.error) || 'Wystąpił błąd po stronie serwera. Spróbuj ponownie.');
+    }
+
+    return data;
+  }
+
+  /* ---------------------------------------------------------------
+     Panel 1 — Product analyzer
+     --------------------------------------------------------------- */
+  const analyzeForm = document.getElementById('analyze-form');
+  const productsInput = document.getElementById('products-input');
+  const analyzeLoading = document.getElementById('analyze-loading');
+  const analyzeError = document.getElementById('analyze-error');
+  const analyzeResults = document.getElementById('analyze-results');
+  const productsGrid = document.getElementById('products-grid');
+  const reanalyzeBtn = document.getElementById('reanalyze-btn');
+  const analyzeBtn = document.getElementById('analyze-btn');
+
+  const RATING_LABELS = {
+    red: 'czerwony – unikaj',
+    yellow: 'żółty – z umiarem',
+    green: 'zielony – zdrowy wybór'
+  };
+
+  function normalizeRating(rating) {
+    const r = (rating || '').toString().trim().toLowerCase();
+    if (r.startsWith('red') || r === 'czerwony') return 'red';
+    if (r.startsWith('yellow') || r === 'żółty' || r === 'zolty') return 'yellow';
+    if (r.startsWith('green') || r === 'zielony') return 'green';
+    return 'yellow';
+  }
+
+  function renderProducts(products) {
+    productsGrid.innerHTML = '';
+
+    products.forEach((p) => {
+      const rating = normalizeRating(p.rating);
+      const card = document.createElement('div');
+      card.className = `product-card product-card--${rating}`;
+
+      let altsHtml = '';
+      if ((rating === 'red' || rating === 'yellow') && Array.isArray(p.alternatives) && p.alternatives.length) {
+        const items = p.alternatives.slice(0, 2).map((a) => `<li>${escapeHtml(a)}</li>`).join('');
+        altsHtml = `
+          <div class="product-card__alts">
+            <span class="product-card__alts-label">Zamienniki</span>
+            <ul>${items}</ul>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        <div class="product-card__name">${escapeHtml(p.name)}</div>
+        <span class="product-card__rating">
+          <span class="chip chip--${rating}"></span>
+          ${escapeHtml(RATING_LABELS[rating])}
+        </span>
+        <div class="product-card__reason">${escapeHtml(p.reason || '')}</div>
+        ${altsHtml}
+      `;
+
+      productsGrid.appendChild(card);
+    });
+  }
+
+  analyzeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const raw = productsInput.value
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!raw.length) return;
+
+    hideEl(analyzeError);
+    hideEl(analyzeResults);
+    showEl(analyzeLoading);
+    analyzeBtn.disabled = true;
+
+    try {
+      const data = await callApi('analyze', { products: raw });
+      const products = (data && data.products) || [];
+
+      if (!products.length) {
+        throw new Error('Nie udało się uzyskać oceny produktów. Spróbuj ponownie.');
+      }
+
+      renderProducts(products);
+      showEl(analyzeResults);
+    } catch (err) {
+      analyzeError.textContent = err.message || FRIENDLY_ERROR;
+      showEl(analyzeError);
+    } finally {
+      hideEl(analyzeLoading);
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  reanalyzeBtn.addEventListener('click', () => {
+    hideEl(analyzeResults);
+    productsGrid.innerHTML = '';
+    productsInput.value = '';
+    productsInput.focus();
+  });
+
+  /* ---------------------------------------------------------------
+     Panel 2 — Meal generator
+     --------------------------------------------------------------- */
+  const mealForm = document.getElementById('meal-form');
+  const mealTypeSelect = document.getElementById('meal-type');
+  const prepTimeSelect = document.getElementById('prep-time');
+  const servingsInput = document.getElementById('servings');
+  const mealLoading = document.getElementById('meal-loading');
+  const mealError = document.getElementById('meal-error');
+  const mealResult = document.getElementById('meal-result');
+  const mealBtn = document.getElementById('meal-btn');
+
+  const dishNameEl = document.getElementById('dish-name');
+  const shoppingListEl = document.getElementById('shopping-list');
+  const recipeStepsEl = document.getElementById('recipe-steps');
+  const tipsTextEl = document.getElementById('tips-text');
+
+  function renderMeal(meal) {
+    dishNameEl.textContent = meal.dishName || 'Propozycja dania';
+
+    shoppingListEl.innerHTML = '';
+    (meal.shoppingList || []).forEach((item) => {
+      const li = document.createElement('li');
+      const itemName = typeof item === 'string' ? item : (item.item || '');
+      const amount = typeof item === 'string' ? '' : (item.amount || '');
+      li.innerHTML = `<span>${escapeHtml(itemName)}</span>${amount ? `<span class="amount">${escapeHtml(amount)}</span>` : ''}`;
+      shoppingListEl.appendChild(li);
+    });
+
+    recipeStepsEl.innerHTML = '';
+    (meal.recipeSteps || []).forEach((step) => {
+      const li = document.createElement('li');
+      li.textContent = step;
+      recipeStepsEl.appendChild(li);
+    });
+
+    tipsTextEl.textContent = meal.tips || '';
+  }
+
+  mealForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const mealType = mealTypeSelect.value;
+    if (!mealType) return;
+
+    const diet = Array.from(document.querySelectorAll('input[name="diet"]:checked')).map((c) => c.value);
+    const prepTime = prepTimeSelect.value;
+    const servings = parseInt(servingsInput.value, 10) || 2;
+
+    hideEl(mealError);
+    hideEl(mealResult);
+    showEl(mealLoading);
+    mealBtn.disabled = true;
+
+    try {
+      const data = await callApi('meal', {
+        mealType,
+        preferences: diet,
+        prepTime,
+        servings
+      });
+
+      if (!data || !data.dishName) {
+        throw new Error('Nie udało się wygenerować dania. Spróbuj ponownie.');
+      }
+
+      renderMeal(data);
+      showEl(mealResult);
+      mealResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      mealError.textContent = err.message || FRIENDLY_ERROR;
+      showEl(mealError);
+    } finally {
+      hideEl(mealLoading);
+      mealBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('regenerate-btn').addEventListener('click', () => {
+    hideEl(mealResult);
+    mealForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('print-btn').addEventListener('click', () => {
+    window.print();
+  });
+
+})();
+
+</script>
+</body>
+</html>
